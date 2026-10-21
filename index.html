@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Syntax Tree Editor</title>
+<style>
+:root{--bg:#f6f6f4;--fg:#1c1c1c;--card:#fff;--bd:#d6d6d0;--ac:#2f5fd0;--mu:#6b6b66;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17181a;--fg:#e8e8e4;--card:#222427;--bd:#3a3d41;--ac:#7ea2ff;--mu:#9a9a94}}
+:root[data-theme="dark"]{--bg:#17181a;--fg:#e8e8e4;--card:#222427;--bd:#3a3d41;--ac:#7ea2ff;--mu:#9a9a94}
+html,body{height:auto}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:4px 0 12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:12px}
+textarea{width:100%;box-sizing:border-box;min-height:110px;font:14px/1.4 ui-monospace,Menlo,Consolas,monospace;background:var(--bg);color:var(--fg);border:1px solid var(--bd);border-radius:8px;padding:8px;resize:vertical}
+.row{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;margin-top:10px}
+label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--mu)}
+select,button,input[type=number]{font:inherit;font-size:13px;background:var(--bg);color:var(--fg);border:1px solid var(--bd);border-radius:6px;padding:5px 9px}
+button{cursor:pointer}button:hover{border-color:var(--ac)}
+input[type=range]{width:100px}input[type=color]{width:30px;height:24px;padding:0;border:1px solid var(--bd);background:none}
+#out{background:#fff;border-radius:8px;overflow-x:auto;padding:8px;text-align:center;color:#555}
+#out svg{max-width:none}
+.muted{color:var(--mu)}
+#out.dk{background:#1b1d21;color:#aaa}
+button.on{border-color:var(--ac);color:var(--ac);font-weight:600}
+.sep{width:1px;align-self:stretch;background:var(--bd)}
+#out text{pointer-events:none}#out text[data-p]{pointer-events:all;cursor:pointer}
+#out rect[data-p]:hover{fill:rgba(47,95,208,.12);cursor:pointer}
+#out rect.sel{fill:rgba(47,95,208,.2);stroke:#2f5fd0}
+#pop{position:absolute;z-index:5;background:var(--card);border:1px solid var(--ac);border-radius:8px;padding:8px;box-shadow:0 4px 14px rgba(0,0,0,.3);display:flex;flex-direction:column;gap:6px;min-width:200px}
+#pop[hidden]{display:none}
+#pop label{justify-content:space-between}
+#pop input{font:inherit;font-size:13px;background:var(--bg);color:var(--fg);border:1px solid var(--bd);border-radius:6px;padding:4px 7px;width:120px}
+.pb{display:flex;flex-wrap:wrap;gap:4px}
+#out{user-select:none}#out rect[data-p],#out rect[data-w]{touch-action:none}#out text[data-r]{pointer-events:all;cursor:pointer}#out rect[data-w]:hover{fill:rgba(47,95,208,.12);cursor:pointer}#out rect[data-w].sel{fill:rgba(47,95,208,.2);stroke:#2f5fd0}
+#sname{font:inherit;font-size:13px;background:var(--bg);color:var(--fg);border:1px solid var(--bd);border-radius:6px;padding:5px 8px;width:110px}
+[hidden]{display:none!important}
+#gc{max-width:300px}#gc button{padding:1px 6px;font-size:11px}
+details{font-size:13px;color:var(--mu)}code{background:var(--bg);padding:1px 5px;border-radius:4px;color:var(--fg)}
+pre{background:var(--bg);padding:8px;border-radius:6px;overflow-x:auto;color:var(--fg)}
+
+#btut{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;z-index:40;background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600}
+#tut{position:fixed;inset:0;z-index:60;overflow:auto;background:var(--bg);color:var(--fg);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tin{max-width:860px;margin:0 auto;padding:0 16px 70px}
+.thead{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;background:var(--bg);padding:10px 0;border-bottom:1px solid var(--bd);z-index:2}
+#tut h2{font-size:19px;margin:30px 0 6px}#tut h3{font-size:15px;margin:18px 0 4px}#tut p,#tut li{margin:6px 0}
+#tnav a{color:var(--ac);text-decoration:none;white-space:nowrap}
+.ex{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px;margin:10px 0}
+.ex pre{margin:0 0 8px;white-space:pre-wrap}
+.fig{background:#fff;border-radius:8px;overflow-x:auto;text-align:center;padding:6px;margin-bottom:8px}.fig svg{max-width:none}
+.pair{display:flex;flex-wrap:wrap;gap:10px}.pair>div{flex:1 1 260px;min-width:0}
+.cap{font-size:12px;color:var(--mu);margin:0 0 4px}
+.mock{display:inline-flex;flex-direction:column;gap:6px;border:1px solid var(--ac);border-radius:8px;padding:8px;background:var(--card);box-shadow:0 4px 14px rgba(0,0,0,.2);font-size:13px}
+.mock div{display:flex;justify-content:space-between;gap:14px;color:var(--mu)}.mock .in{border:1px solid var(--bd);border-radius:6px;padding:2px 8px;min-width:90px;color:var(--fg);background:var(--bg)}
+.mock .bt{justify-content:flex-start;flex-wrap:wrap;gap:4px}.mock .bt span{border:1px solid var(--bd);border-radius:6px;padding:2px 7px;color:var(--fg)}
+#tut table{border-collapse:collapse;font-size:13px;width:100%}#tut td,#tut th{border:1px solid var(--bd);padding:4px 8px;text-align:left;vertical-align:top}
+
+.hl{color:var(--ac);text-decoration:none}.hl:hover{text-decoration:underline}
+#tut h2 small{font-size:12px;font-weight:400;color:var(--mu);margin-left:6px}
+#tpage h1{margin:14px 0 6px}#tpage .lead{font-size:16px}
+</style></head>
+<body><main>
+<h1>Syntax Tree Editor</h1><button id="btut">Tutorial</button>
+<div class="card">
+ <div class="row" style="margin-top:0">
+  <label>Mode <select id="mode">
+   <option value="con">Constituency tree</option>
+   <option value="dtree">Dependency tree</option>
+   <option value="arcs">Dependency model (arcs)</option></select></label>
+ </div>
+ <textarea id="src" spellcheck="false" style="margin-top:10px"></textarea>
+ <div id="err" style="color:#c0392b;font-size:13px;margin-top:4px"></div>
+ <div class="row">
+  <label>Font <select id="font"><option value="Times New Roman, Times, serif">Serif</option><option value="Helvetica, Arial, sans-serif">Sans</option><option value="Courier New, monospace">Mono</option></select></label>
+  <label>Size <input type="range" id="fs" min="10" max="40" value="18"></label>
+  <label>Height <input type="range" id="lh" min="10" max="500" value="56"></label>
+  <label>Spacing <input type="range" id="gap" min="0" max="300" value="20"></label>
+ </div>
+ <div class="row">
+  <label><input type="checkbox" id="col" checked> Colour</label>
+  <label>Terminals <input type="color" id="tc" value="#2a7a2a"></label>
+  <label>Non-terminals <input type="color" id="nc" value="#2f4fd0"></label>
+  <label><input type="checkbox" id="ar" checked> Movement arrows</label>
+  <label><input type="checkbox" id="sp" checked> POS / lemma</label>
+  <label>Clauses <select id="lay"><option value="v">Stacked</option><option value="h">Side by side</option></select></label>
+ </div>
+ <div class="row">
+  <button id="bsvg">Download SVG</button><button id="bpng">Download PNG</button><button id="blink">Copy link</button><button id="bundo" title="Ctrl+Z">&#8630; Undo</button><button id="bredo" title="Ctrl+Y">&#8631; Redo</button><span id="msg" class="muted"></span></div>
+ <div class="row"><input id="sname" placeholder="Name" autocomplete="off"><button id="ssave">Save</button><select id="sv"></select><button id="sload">Load</button><button id="sdel">Delete</button>
+ </div>
+</div>
+<div class="card" style="position:relative"><div id="pop" hidden><label>Label <input id="pl" autocomplete="off"></label><label>Semantic <input id="ps" autocomplete="off"></label><div class="pb" id="gc"></div><label>Gloss <input id="pg" autocomplete="off" placeholder="e.g. see.3SG.PRS"></label><label id="prw">Relation <input id="pr" autocomplete="off"></label><label>POS <input id="pp" autocomplete="off"></label><label>Lemma <input id="pm" autocomplete="off"></label><div class="pb"><button data-a="child" title="Add a branch below">+ Child &darr;</button><button data-a="sib" title="Add a branch beside">+ Sibling &rarr;</button><button data-a="par" title="Add a node above">+ Parent &uarr;</button><button data-a="left" title="Move left">&larr;</button><button data-a="right" title="Move right">&rarr;</button><button data-a="tri" title="Toggle triangle">&#9651;</button><button data-a="wadd">+ Word</button><button data-a="del">Delete</button><button data-a="x">Close</button></div></div><div class="row" style="margin:0 0 8px"><button id="zo" title="Zoom out">&minus;</button><span id="zl" class="muted" style="min-width:44px;text-align:center">100%</span><button id="zi" title="Zoom in">+</button><button id="z1">100%</button><button id="zf">Fit width</button><span class="sep"></span><button id="tl" class="on">&#9728; Light</button><button id="td">&#9790; Dark</button><span class="muted" style="font-size:12px">Ctrl/Cmd + scroll also zooms</span></div><div id="out"></div></div>
+<div class="card"><div class="row" style="margin:0"><b style="font-size:13px">Import / export</b><select id="fmt"><option value="pen">Penn Treebank</option><option value="qt">LaTeX qtree</option><option value="fo">LaTeX forest</option><option value="dot">Graphviz DOT</option><option value="conllu">CoNLL-U</option></select><button id="bex">Export text</button><button id="bimp">Import file</button><input type="file" id="fimp" hidden><textarea id="xout" readonly hidden style="flex-basis:100%;min-height:80px"></textarea></div></div>
+
+<div class="card"><details><summary>Syntax help</summary>
+<p><b>Constituency</b>: labelled brackets, e.g. <code>[S [NP This] [VP [V is] [NP/\ a wug]]]</code>. Type several bracketed clauses one after another to draw them all (stacked or side by side). A trailing <code>/\</code> on a label draws a triangle.</p><p><b>Sub/superscript</b>: <code>_</code> and <code>^</code> are shown as plain characters. To get a subscript type <code>_\</code> before the text (<code>DP_\1</code>), for a superscript type <code>^\</code> (<code>X^\2</code>). It lasts until the next space or bracket. Use <code>\[</code> and <code>\]</code> for literal brackets.</p><p><b>Movement arrows</b>: give exactly two nodes the same subscript (<code>[DP_\1 What]</code> … <code>[DP t_\1]</code>) and an arrow is drawn from the later one to the earlier one.</p>
+<p><b>Leipzig glossing</b>: put a gloss in angle brackets after a word or label, with no spaces: <code>[V° sees&lt;see.3SG.PRS&gt;]</code>, <code>[nsubj:she&lt;3SG.F.NOM&gt;]</code>. Terminals show the gloss beneath them and other nodes beside them, with grammatical abbreviations (all capitals) in small caps. Use <code>.</code> to join meanings, <code>-</code> and <code>=</code> for morpheme and clitic boundaries (e.g. <code>dog-PL</code>, <code>see.PST</code>). Common abbreviations: 1/2/3 person, SG, PL, NOM, ACC, GEN, DAT, ERG, ABS, PST, PRS, FUT, PFV, IPFV, NEG, DEF, INDF, M, F, N, INF, PASS, COP. It can sit alongside <code>{semantic}</code> labels: <code>V&lt;see.PST&gt;{agent}</code>.</p><p><b>Leipzig glosses</b>: write semantic labels as glosses, e.g. <code>eat-PST</code>, <code>dog.PL</code>, <code>1SG.NOM</code>, <code>DEF</code>. Lowercase = lexical meaning (English word), UPPERCASE = grammatical abbreviation (shown in small caps); <code>-</code> <code>.</code> <code>=</code> separate parts. Use the chips in the node editor to add common abbreviations.</p><p><b>Editing</b>: click any node (or a dependency relation) in the drawing to edit its label, semantic label and relation, add a child below, a sibling beside, or a parent above, or delete it. The text box updates to match. Semantic labels are written <code>NP{agent}</code> in the text.</p><p><b>Dependency tree</b>: brackets with <code>relation:word</code>, the head first: <code>[ate [nsubj:John] [dobj:apple [det:an]]]</code>. A table (below) also works.</p>
+<p><b>Drag &amp; drop</b>: drag a tree node onto another to move it there as a child. In the arc diagram, drag from a head word to its dependent to set the head (hold Shift to add an extra, enhanced head). Click a word or relation label to edit it. Ctrl/Cmd+Z and Ctrl/Cmd+Y undo and redo.</p><p><b>Enhanced / extra heads</b>: in the head column write <code>2|4:xsubj</code> (primary head, then extra heads with relations); they are drawn dashed and crossing arcs are allowed. Columns are <code>word head rel POS gloss lemma</code> (use <code>_</code> to skip). In bracket dependency trees write <code>rel:word/POS/lemma</code>.</p><p><b>Import / export</b>: paste or import Penn Treebank, LaTeX qtree/forest or CoNLL-U and it is converted. Export text gives Penn, qtree, forest, DOT or CoNLL-U. Trees can be saved in your browser by name.</p><p><b>Dependency model</b>: one token per line, <code>word head relation [POS]</code>, head is the 1-based index of the head word, 0 for the root. CoNLL-U is also accepted.</p>
+<pre>John 2 nsubj NNP
+ate 0 root VBD</pre></details></div>
+</main>
+<div id="tut" hidden><div class="tin"><div class="thead"><b>Tutorial</b><button id="tclose">&larr; Back to editor</button></div><div id="tmain"><p id="tnav" class="muted" style="line-height:2"></p><div id="tbody"></div></div><div id="tpage" hidden></div></div></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const cv=document.createElement('canvas').getContext('2d');
+let FONT='Times New Roman, Times, serif', lastSvg='';
+const EX={
+ con:"[CP [DP_\\1 What] [C' [C° did] [IP [DP [D° you]] [I' [I°] [VP [V° buy] [DP t_\\1]]]]]]",
+ dtree:"[ate [nsubj:John] [dobj:apple [det:an]] [advmod:quickly]]",
+ arcs:"John 2 nsubj NNP\nate 0 root VBD\nan 4 det DT\napple 2 dobj NN\nquickly 2 advmod RB"};
+const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const tw=(t,sz,it)=>{cv.font=(it?'italic ':'')+sz+'px '+FONT;return cv.measureText(t).width};
+const BS=String.fromCharCode(92);
+function segs(l){
+ const out=[];let k='n',cur='',i=0;
+ const flush=()=>{
+  if(!cur)return;
+  if(k=='n')out.push({t:cur,k});
+  else{const m=cur.match(/^(\S*)([\s\S]*)$/);if(m[1])out.push({t:m[1],k});if(m[2])out.push({t:m[2],k:'n'})}
+  cur='';
+ };
+ while(i<l.length){
+  const c=l[i];
+  if((c=='_'||c=='^')&&l[i+1]==BS){flush();k=c=='_'?'sub':'sup';i+=2;continue}
+  cur+=c;i++;
+ }
+ flush();return out;
+}
+const parts=l=>{const g=segs(l);return{b:g.filter(x=>x.k=='n').map(x=>x.t).join(''),s:g.filter(x=>x.k=='sub').map(x=>x.t).join('')}};
+const lw=(l,sz)=>segs(l).reduce((a,g)=>a+(g.k=='n'?tw(g.t,sz):tw(g.t,sz*.7)+1),0);
+const ltxt=(l,x,y,sz,fill)=>{let cur=0;const t=segs(l).map(g=>{const to=g.k=='sub'?sz*.25:g.k=='sup'?-sz*.4:0,dy=to-cur;cur=to;return `<tspan font-size="${g.k=='n'?sz:sz*.7}"${dy?` dy="${dy}"`:''}>${esc(g.t)}</tspan>`}).join('');return `<text x="${x}" y="${y}" fill="${fill}" text-anchor="middle" font-family="${FONT}" xml:space="preserve">${t}</text>`};
+const wrap=(w,h,b)=>({w,h,b});
+function compose(items,side){
+ const g=side?28:20;
+ const W=Math.ceil(side?items.reduce((a,t)=>a+t.w,0)+g*(items.length-1):Math.max(...items.map(t=>t.w)));
+ const H=Math.ceil(side?Math.max(...items.map(t=>t.h)):items.reduce((a,t)=>a+t.h,0)+g*(items.length-1));
+ let x=0,y=0,b='';
+ items.forEach(t=>{b+=`<g transform="translate(${side?x:(W-t.w)/2} ${side?0:y})">${t.b}</g>`;x+=t.w+g;y+=t.h+g});
+ return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#333"/></marker></defs><rect width="100%" height="100%" fill="#fff"/>${b}</svg>`;
+}
+
+function leaves(t){
+ const o=[],re=/([^<>]*?)<([^<>\s]*)>/g;let m,last=0;
+ while((m=re.exec(t))){o.push({label:m[1].trim(),gloss:m[2]||undefined,leaf:true,kids:[]});last=re.lastIndex}
+ const r=t.slice(last).trim();if(r)o.push({label:r,leaf:true,kids:[]});
+ return o;
+}
+function parse(s){
+ let i=0;
+ const ws=()=>{while(i<s.length&&/\s/.test(s[i]))i++};
+ const rd=stop=>{let t='';while(i<s.length&&!stop.test(s[i])){if(s[i]==BS&&(s[i+1]=='['||s[i+1]==']'))i++;t+=s[i++]}return t};
+ const lab=()=>{let t=rd(/[\s\[\]{]/);if(s[i]=='{'){t+=rd(/\}/);if(s[i]=='}')t+=s[i++];t+=rd(/[\s\[\]]/)}return t};
+ function node(){
+  i++;ws();
+  const n={label:lab(),kids:[]};
+  if(n.label.endsWith('/'+BS)){n.tri=true;n.label=n.label.slice(0,-2)}
+  const sm=n.label.match(/^(.*?)\{([\s\S]*)\}$/);if(sm){n.label=sm[1];n.sem=sm[2]}
+  const gm=n.label.match(/^(.*?)<([^<>\s]*)>$/);if(gm){n.label=gm[1];n.gloss=gm[2]||undefined}
+  
+  for(;;){
+   ws();if(i>=s.length)break;
+   if(s[i]==']'){i++;break}
+   if(s[i]=='[')n.kids.push(node());
+   else{const t=rd(/[\[\]]/).trim();if(t)leaves(t).forEach(x=>n.kids.push(x))}
+  }
+  return n;
+ }
+ const out=[];
+ for(;;){
+  ws();if(i>=s.length)break;
+  if(s[i]=='[')out.push(node());
+  else if(s[i]==']')i++;
+  else{const t=rd(/[\[\]]/).trim();if(t)leaves(t).forEach(x=>out.push(x))}
+ }
+ return out;
+ 
+}
+function splitRel(n){const m=n.label.match(/^([^:\s]+):(.+)$/);if(m){n.rel=m[1];n.label=m[2]}const q=n.label.split('/');if(q.length>1&&q[0]){n.label=q[0];n.pos=q[1]||undefined;n.lemma=q[2]}n.kids.forEach(splitRel)}
+
+const u=s=>!s||s==='_'?'':s;
+const ex=(s,p)=>(s&&s!=='_'?s.split('|'):[]).map(x=>x.split(':')).filter(a=>+a[0]&&+a[0]!=p).map(a=>({h:+a[0],rel:a.slice(1).join(':')}));
+function parseTable(src){
+ const T=[];
+ for(const line of src.split('\n')){
+  const l=line.trim();if(!l||l[0]=='#')continue;
+  if(l[0]=='[')return null;
+  const c=l.split(/\s+/);
+  if(/^\d+-\d+$/.test(c[0]))continue;
+  if(c.length>=8&&/^\d+$/.test(c[0]))T.push({word:c[1],lemma:u(c[2]),head:+c[6]||0,rel:u(c[7]),pos:u(c[3]),extra:ex(c[8],+c[6])});
+  else{const hd=(c[1]||'').split('|');T.push({word:c[0],head:parseInt(hd[0])||0,rel:u(c[2]),pos:u(c[3]),sem:u(c[4]),lemma:u(c[5]),extra:ex(hd.slice(1).join('|'),0)})}
+ }
+ return T.length?T:null;
+}
+const blocks=src=>src.split(/\n\s*\n/).map(b=>parseTable(b)).filter(Boolean);
+function tableToTree(T){
+ const N=T.map(t=>({label:t.word,rel:t.rel,pos:t.pos,lemma:t.lemma,sem:t.sem||undefined,kids:[]}));let root=null;
+ T.forEach((t,i)=>{
+  if(t.head>0&&t.head<=T.length&&t.head!=i+1)N[t.head-1].kids.push(N[i]);
+  else if(!root)root=N[i];else root.kids.push(N[i]);
+ });
+ return root;
+}
+
+const gtxt=(g,x,y,sz,fill,an)=>`<text x="${x}" y="${y}" font-size="${sz}" fill="${fill}" text-anchor="${an}" font-family="${FONT}" xml:space="preserve">${g.split(/([.\-=:;])/).map(t=>/^[A-Z0-9]+$/.test(t)&&/[A-Z]/.test(t)?`<tspan style="font-variant:small-caps">${esc(t.toLowerCase())}</tspan>`:esc(t)).join('')}</text>`;
+const hit=(n,fs)=>{const w=Math.max(n.ow,fs*1.2)+6;return `<rect data-p="${n.p}" x="${n.x-w/2}" y="${n.y-fs*1.05}" width="${w}" height="${fs*1.5}" fill="transparent"/>`};
+function drawTree(root,o,dep){
+ const fs=o.fs,gap=o.gap,lh=o.lh,pad=20,nodes=[],ti=TI++;TREES[ti]=root;
+ (function lay(n,d,p){
+  nodes.push(n);n.d=d;n.p=p;n.pt=dep&&o.sp?[n.pos,n.lemma].filter(Boolean).join(' · '):'';n.sw=Math.max((n.sem?tw(n.sem,fs*.65,1)+4:0)+(n.gloss&&n.kids.length?tw(n.gloss,fs*.7)+4:0));n.ow=Math.max(lw(n.label,fs)+2*n.sw,n.pt?tw(n.pt,fs*.6,1)+4:0,n.gloss&&!n.kids.length?tw(n.gloss,fs*.7)+4:0);n.kids.forEach((k,j)=>lay(k,d+1,p+'.'+j));
+  n.ks=n.kids.reduce((a,k)=>a+k.w,0)+gap*Math.max(0,n.kids.length-1);n.w=Math.max(n.ow,n.ks);
+ })(root,0,''+ti);
+ const topx=nodes.some(n=>n.pt)?fs*.8:0;
+ (function pl(n,l){
+  n.x=l+n.w/2;n.y=fs*1.2+topx+n.d*lh;let c=l+(n.w-n.ks)/2;
+  n.kids.forEach(k=>{pl(k,c);c+=k.w+gap});
+ })(root,pad);
+ let s='',maxY=Math.max(...nodes.map(n=>n.y));
+ nodes.forEach(n=>n.kids.forEach(k=>{
+  const x1=n.x,y1=n.y+fs*.3,x2=k.x,y2=k.y-fs*(k.pt?1.65:.95);
+  if(n.tri&&k.leaf&&n.kids.length==1){const hw=lw(k.label,fs)/2;s+=`<path d="M${x1} ${y1}L${x2-hw} ${y2}H${x2+hw}Z" fill="none" stroke="#333"/>`}
+  else s+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#333"/>`;
+  if(dep&&k.rel)s+=`<text data-p="${k.p}" x="${(x1+x2)/2}" y="${(y1+y2)/2+fs*.25}" font-size="${fs*.7}" font-style="italic" font-family="${FONT}" text-anchor="middle" fill="${o.col?o.nc:'#555'}" stroke="#fff" stroke-width="4" paint-order="stroke">${esc(k.rel)}</text>`;
+ }));
+ let ext=0;
+ if(!dep&&o.ar){
+  const g={};nodes.forEach(n=>{const p=parts(n.label);if(p.s)(g[p.s]=g[p.s]||[]).push(n)});
+  Object.values(g).filter(a=>a.length==2).forEach((a,idx)=>{
+   const [d,t]=a,cy=Math.max(t.y,d.y)+fs*1.5+idx*fs*.5;
+   s+=`<path d="M${t.x} ${t.y+fs*.45}C${t.x} ${cy},${d.x} ${cy},${d.x} ${d.y+fs*.5}" fill="none" stroke="#333" marker-end="url(#ah)"/>`;
+   ext=Math.max(ext,cy-maxY);
+  });
+ }
+ nodes.forEach(n=>{s+=hit(n,fs);if(n.label){
+  const c=dep||!o.col?'#111':(n.kids.length?o.nc:o.tc);
+  s+=ltxt(n.label,n.x,n.y,fs,c);
+  if(n.sem)s+=semSvg(n.sem,n.x+lw(n.label,fs)/2+4,n.y,fs*.7,o.col?'#b4540a':'#555','start');
+  if(n.pt)s+=`<text x="${n.x}" y="${n.y-fs*.95}" font-size="${fs*.6}" font-style="italic" text-anchor="middle" font-family="${FONT}" fill="#777">${esc(n.pt)}</text>`;
+  if(n.gloss){const gc=o.col?'#6b3fa0':'#555',gs=fs*.7;s+=n.kids.length?gtxt(n.gloss,n.x+lw(n.label,fs)/2+4+(n.sem?tw(n.sem,fs*.65,1)+4:0),n.y,gs,gc,'start'):gtxt(n.gloss,n.x,n.y+fs*.95,gs,gc,'middle')}
+ }});
+ return wrap(Math.ceil(root.w+2*pad),Math.ceil(maxY+fs*.8+ext*.75+10+(nodes.some(n=>n.gloss&&!n.kids.length)?fs:0)),s);
+}
+
+function drawArcs(T,o,bi){
+ const fs=o.fs,n=T.length,pad=20,lf=fs*.75,lvH=fs*1.4;
+ const cw=T.map(t=>Math.max(lw(t.word,fs),t.pos?tw(t.pos,lf):0,t.sem?tw(t.sem,lf):0,t.lemma?tw(t.lemma,lf,1):0)+o.gap);
+ const arcs=[];
+ T.forEach((t,i)=>{t.i=i;t.h=t.head-1;if(t.h>=0&&t.h<n&&t.h!=i)arcs.push({a:Math.min(i,t.h),b:Math.max(i,t.h),t,k:-1});(t.extra||[]).forEach((e,k)=>{const h=e.h-1;if(h>=0&&h<n&&h!=i)arcs.push({a:Math.min(i,h),b:Math.max(i,h),t:{i,h,rel:e.rel},k,dash:1})})});
+ arcs.sort((p,q)=>(p.b-p.a)-(q.b-q.a));
+ arcs.forEach(r=>{if(r.b-r.a==1){const need=tw(r.t.rel,lf,1)+16,def=need-(cw[r.a]+cw[r.b])/2;if(def>0)cw[r.b]+=2*def}});
+ let x=pad;const c=cw.map(w=>{const v=x+w/2;x+=w;return v});
+ arcs.forEach(r=>{r.l=1+Math.max(0,...arcs.filter(q=>q!==r&&q.l&&q.a<r.b&&r.a<q.b).map(q=>q.l))});
+ const roots=T.filter(t=>t.h<0||t.h>=n||t.h==t.i);
+ roots.forEach(t=>{t.rl=1+Math.max(0,...arcs.filter(q=>q.a<t.i&&t.i<q.b).map(q=>q.l))});
+ const maxL=Math.max(1,...arcs.map(a=>a.l),...roots.map(r=>r.rl));
+ const y0=maxL*lvH+fs*1.6,hasPos=o.sp&&T.some(t=>t.pos),hasLem=o.sp&&T.some(t=>t.lemma),nr=(hasPos?1:0)+(hasLem?1:0);
+ let s='';
+ const rc=o.col?o.nc:'#333';
+ arcs.forEach(r=>{
+  const t=r.t,sg=Math.sign(c[t.i]-c[t.h]),hx=c[t.h]+sg*6,dx=c[t.i],top=y0-r.l*lvH;
+  const rr=Math.max(1,Math.min(8,lvH*.5,Math.abs(dx-hx)/2-1));
+  s+=`<path d="M${hx} ${y0}V${top+rr}Q${hx} ${top} ${hx+sg*rr} ${top}H${dx-sg*rr}Q${dx} ${top} ${dx} ${top+rr}V${y0-1}" fill="none" stroke="#333"${r.dash?' stroke-dasharray="5 3"':''} marker-end="url(#ah)"/>`;
+  s+=`<text data-r="${bi}.${t.i}.${r.k}" x="${(hx+dx)/2}" y="${top-4}" font-size="${lf}" font-style="italic" font-family="${FONT}" text-anchor="middle" fill="${rc}">${esc(t.rel)}</text>`;
+ });
+ roots.forEach(t=>{
+  const top=y0-t.rl*lvH;
+  s+=`<path d="M${c[t.i]} ${top}V${y0-1}" stroke="#333" fill="none" marker-end="url(#ah)"/><text data-r="${bi}.${t.i}.-1" x="${c[t.i]}" y="${top-4}" font-size="${lf}" font-style="italic" font-family="${FONT}" text-anchor="middle" fill="${rc}">${esc(t.rel||'root')}</text>`;
+ });
+ T.forEach((t,i)=>{
+  s+=`<rect data-w="${bi}.${i}" x="${c[i]-cw[i]/2}" y="${y0+fs*.1}" width="${cw[i]}" height="${fs*1.5}" fill="transparent"/>`;
+  s+=ltxt(t.word,c[i],y0+fs*1.1,fs,o.col?o.tc:'#111');
+  if(t.sem)s+=semSvg(t.sem,c[i],y0+fs*(2.3+nr*1.1),lf,o.col?'#b4540a':'#555','middle');
+  if(hasLem&&t.lemma)s+=`<text x="${c[i]}" y="${y0+fs*(hasPos?3.3:2.2)}" font-size="${lf}" font-style="italic" fill="#777" text-anchor="middle" font-family="${FONT}">${esc(t.lemma)}</text>`;
+  if(hasPos&&t.pos)s+=`<text x="${c[i]}" y="${y0+fs*2.2}" font-size="${lf}" fill="#777" text-anchor="middle" font-family="${FONT}">${esc(t.pos)}</text>`;
+ });
+ return wrap(Math.ceil(x+pad),Math.ceil(y0+fs*((nr?1.6+nr*1.1:1.6)+(T.some(t=>t.sem)?1.3:0))),s);
+}
+
+function render(){
+ const o={fs:+$('#fs').value,lh:+$('#lh').value,gap:+$('#gap').value,col:$('#col').checked,tc:$('#tc').value,nc:$('#nc').value,ar:$('#ar').checked,sp:$('#sp').checked};
+ FONT=$('#font').value;snap();
+ const m=$('#mode').value,src=$('#src').value;
+ let svg='',hint='Type something to draw a tree.',items=[];const side=$('#lay').value=='h';TI=0;TREES=[];TBL=[];
+ try{
+  if(m=='arcs'){TBL=blocks(src);items=TBL.map((T,b)=>drawArcs(T,o,b));if(items.length)svg=compose(items,side);else hint='Enter one token per line: word head relation [POS]'}
+  else{
+   let t;
+   if(m=='dtree'&&src.trim()[0]!='['){items=blocks(src).map(T=>tableToTree(T)).filter(Boolean).map(x=>drawTree(x,o,true))}
+   else{const ts=parse(src);ts.forEach(x=>{if(m=='dtree')splitRel(x)});items=ts.map(x=>drawTree(x,o,m=='dtree'))}
+   if(items.length)svg=compose(items,side);
+  }
+ }catch(e){hint='Could not draw this input.'}
+ if(DK&&svg)svg=svg.replace(/#(?:333|111|555|777|fff)(?![0-9a-fA-F])/gi,m=>DMAP[m.toLowerCase()]);
+ ERR=check(src,m);$('#err').innerHTML=ERR?'⚠ '+esc(ERR.msg)+' <a href="#" id="ej" style="color:inherit">Show</a>':'';
+ lastSvg=svg;$('#out').classList.toggle('dk',DK);
+ $('#out').innerHTML=svg||hint;applyZoom();showPop();
+ try{const p=new URLSearchParams({m,t:src,fs:o.fs,th:DK?'d':'l'});history.replaceState(null,'','?'+p)}catch(e){}
+}
+function dl(name,blob){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+$('#bsvg').onclick=()=>lastSvg&&dl('tree.svg',new Blob([lastSvg],{type:'image/svg+xml'}));
+$('#bpng').onclick=()=>{
+ if(!lastSvg)return;const im=new Image();
+ im.onload=()=>{const c=document.createElement('canvas');c.width=im.width*2;c.height=im.height*2;const g=c.getContext('2d');g.scale(2,2);g.drawImage(im,0,0);c.toBlob(b=>dl('tree.png',b))};
+ im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(lastSvg);
+};
+$('#blink').onclick=async()=>{
+ try{await navigator.clipboard.writeText(location.href);$('#msg').textContent='Link copied'}catch(e){$('#msg').textContent='Copy the address bar URL'}
+ setTimeout(()=>$('#msg').textContent='',2000);
+};
+let SEL=null,TI=0,TREES=[];
+const isDep=()=>$('#mode').value=='dtree';
+const E=s=>s.replace(/[\[\]]/g,m=>BS+m);
+function ser(n,dep){
+ if(n.leaf&&!n.sem&&!dep&&!n.kids.length)return E(n.label)+(n.gloss?'<'+n.gloss+'>':'');
+ const l=E((dep&&n.rel?n.rel+':':'')+n.label+(dep&&(n.pos||n.lemma)?'/'+(n.pos||'')+(n.lemma?'/'+n.lemma:''):''))+(n.gloss?'<'+n.gloss+'>':'')+(n.sem?'{'+n.sem+'}':'')+(n.tri?'/'+BS:'');
+ return '['+l+n.kids.map(k=>' '+ser(k,dep)).join('')+']';
+}
+function nodeAt(p){const a=p.split('.').map(Number);let n=TREES[a[0]];for(let i=1;i<a.length&&n;i++)n=n.kids[a[i]];return n}
+function sync(){$('#src').value=TREES.map(t=>ser(t,isDep())).join('\n');render()}
+function showPop(){if(ASEL)return showArcPop();
+ const pop=$('#pop'),n=SEL&&TREES.length?nodeAt(SEL):null,el=n&&$('#out').querySelector('rect[data-p="'+SEL+'"]');
+ if(!el){pop.hidden=true;return}
+ el.classList.add('sel');pop.hidden=false;
+ setRows(isDep()?'d':'t');
+ [['#pl',n.label],['#ps',n.sem||''],['#pg',n.gloss||''],['#pr',n.rel||''],['#pp',n.pos||''],['#pm',n.lemma||'']].forEach(([id,v])=>{if($(id).value!==v)$(id).value=v});
+ const r=el.getBoundingClientRect(),c=pop.parentNode.getBoundingClientRect();
+ pop.style.left=Math.max(4,Math.min(r.left-c.left,c.width-pop.offsetWidth-4))+'px';
+ pop.style.top=(r.bottom-c.top+6)+'px';
+}
+$('#out').addEventListener('click',e=>{
+ if(DRAGGED)return;
+ const t=e.target.closest('[data-p],[data-w],[data-r]');SEL=null;ASEL=null;
+ if(t){if(t.dataset.p)SEL=t.dataset.p;else{const a=(t.dataset.w||t.dataset.r).split('.').map(Number);ASEL=t.dataset.w?{k:'w',b:a[0],i:a[1]}:{k:'r',b:a[0],i:a[1],e:a[2]}}}
+ showPop();if(t)$(t.dataset.r?'#pr':'#pl').focus();
+});
+document.addEventListener('keydown',e=>{if(e.key=='Escape'){SEL=null;ASEL=null;showPop()}});
+const fld=(id,fn)=>$(id).addEventListener('input',e=>{if(ASEL){afld(id,e.target.value);return}const n=SEL&&nodeAt(SEL);if(n){fn(n,e.target.value);sync()}});
+fld('#pl',(n,v)=>{n.label=n.leaf&&!isDep()?v:v.replace(/\s/g,'')});
+fld('#ps',(n,v)=>{n.sem=v.replace(/[{}]/g,'').trim()||undefined});
+fld('#pg',(n,v)=>{n.gloss=v.replace(/[\s<>]/g,'')||undefined});
+fld('#pr',(n,v)=>{n.rel=v.replace(/[\s:]/g,'')||undefined});
+fld('#pp',(n,v)=>{n.pos=v.replace(/[\s\/]/g,'')||undefined});
+fld('#pm',(n,v)=>{n.lemma=v.replace(/[\s\/]/g,'')||undefined});
+$('#pop').addEventListener('click',e=>{
+ const a=e.target.dataset.a,n=SEL&&nodeAt(SEL);
+ if(e.target.dataset.g&&n){n.sem=(n.sem?n.sem+'.':'')+e.target.dataset.g;sync();return}
+ if(!a||!n)return;
+ const dep=isDep(),par=SEL.includes('.')?nodeAt(SEL.replace(/\.\d+$/,'')):null,i=+SEL.split('.').pop(),nw=()=>({label:dep?'word':'X',kids:[]});
+ if(a=='x'){SEL=null;showPop();return}
+ if(a=='tri'){n.tri=!n.tri}
+ else if(a=='left'||a=='right'){const L=par?par.kids:TREES,d=a=='left'?-1:1,j=L.indexOf(n);if(L[j+d]){[L[j],L[j+d]]=[L[j+d],L[j]];SEL=SEL.replace(/\d+$/,j+d)}}
+ else if(a=='child'){n.kids.push(nw());SEL+='.'+(n.kids.length-1)}
+ else if(a=='sib'){if(par){par.kids.splice(i+1,0,nw());SEL=SEL.replace(/\d+$/,i+1)}else{TREES.splice(i+1,0,nw());SEL=''+(i+1)}}
+ else if(a=='par'){const w=nw();w.kids=[n];if(par)par.kids[i]=w;else TREES[i]=w}
+ else if(a=='del'){if(par){par.kids.splice(i,1);SEL=SEL.replace(/\.\d+$/,'')}else{TREES.splice(i,1);SEL=null}}
+ sync();
+});
+const GR=/^(?:[0-9]*[A-Z][A-Z0-9]*|[123])$/;
+function semSvg(sem,x,y,sz,fill,anchor){
+ const t=sem.split(/([.\-=:\s]+)/).map(p=>GR.test(p)?`<tspan style="font-variant:small-caps">${esc(p.toLowerCase())}</tspan>`:esc(p)).join('');
+ return `<text x="${x}" y="${y}" font-size="${sz}" font-family="${FONT}" fill="${fill}" text-anchor="${anchor}" xml:space="preserve">${t}</text>`;
+}
+const GLS={'1':'first person','2':'second person','3':'third person',SG:'singular',PL:'plural',M:'masculine',F:'feminine',N:'neuter',NOM:'nominative',ACC:'accusative',GEN:'genitive',DAT:'dative',PST:'past',PRS:'present',FUT:'future',PROG:'progressive',PRF:'perfect',INF:'infinitive',NEG:'negation',DEF:'definite',INDF:'indefinite',COMP:'comparative',SUPL:'superlative',COP:'copula',V:'verb',ADJ:'adjective',ADV:'adverb',ADP:'adposition'};
+$('#gc').innerHTML=Object.keys(GLS).map(k=>`<button data-g="${k}" title="${GLS[k]}">${k}</button>`).join('');
+
+let ASEL=null,TBL=[],ERR=null,DR=null,BAND=null,DRAGGED=false,H=[],HI=-1,HT=0;
+const flash=s=>{$('#msg').textContent=s;setTimeout(()=>$('#msg').textContent='',2000)};
+/* undo / redo */
+const cur=()=>$('#mode').value+'\u0001'+$('#src').value;
+function snap(){const v=cur();if(H[HI]===v)return;const now=Date.now();if(HI>0&&HI==H.length-1&&now-HT<600)H[HI]=v;else{H=H.slice(0,HI+1);H.push(v);if(H.length>300)H.shift();HI=H.length-1}HT=now}
+function restore(){const [m,...r]=H[HI].split('\u0001');$('#mode').value=m;prev=m;$('#src').value=r.join('\u0001');SEL=null;ASEL=null;render()}
+const undo=()=>{if(HI>0){HI--;restore()}},redo=()=>{if(HI<H.length-1){HI++;restore()}};
+$('#bundo').onclick=undo;$('#bredo').onclick=redo;
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&!e.altKey){const k=e.key.toLowerCase();if(k=='z'){e.preventDefault();e.shiftKey?redo():undo()}else if(k=='y'){e.preventDefault();redo()}}});
+/* popover rows */
+const AK={child:'td',sib:'td',par:'td',left:'td',right:'td',tri:'t',wadd:'w',del:'tdwa',x:'tdwa'},RWK={'#pl':'tdw','#ps':'tdw','#gc':'tdw','#pg':'td','#pr':'da','#pp':'dw','#pm':'dw'};
+function setRows(K){Object.entries(RWK).forEach(([id,k])=>{const e=$(id);(e.closest('label')||e).style.display=k.includes(K)?'':'none'});$('#pop').querySelectorAll('[data-a]').forEach(b=>{b.hidden=!(AK[b.dataset.a]||'').includes(K)})}
+function put(el){const pop=$('#pop'),r=el.getBoundingClientRect(),c=pop.parentNode.getBoundingClientRect();pop.style.left=Math.max(4,Math.min(r.left-c.left,c.width-pop.offsetWidth-4))+'px';pop.style.top=(r.bottom-c.top+6)+'px'}
+/* arc editing */
+function showArcPop(){
+ const pop=$('#pop'),w=ASEL.k=='w',T=TBL[ASEL.b],t=T&&T[ASEL.i],ed=t&&!w&&ASEL.e>=0?t.extra[ASEL.e]:t;
+ const el=ed&&$('#out').querySelector(w?'rect[data-w="'+ASEL.b+'.'+ASEL.i+'"]':'text[data-r="'+ASEL.b+'.'+ASEL.i+'.'+ASEL.e+'"]');
+ if(!el){pop.hidden=true;return}
+ pop.hidden=false;setRows(w?'w':'a');if(w)el.classList.add('sel');
+ [['#pl',t.word],['#ps',t.sem||''],['#pp',t.pos||''],['#pm',t.lemma||''],['#pr',w?'':ed.rel||'']].forEach(([id,v])=>{if($(id).value!==v)$(id).value=v});
+ put(el);
+}
+const serTable=T=>T.map(t=>{const a=[t.word,(t.head||0)+(t.extra||[]).map(e=>'|'+e.h+':'+e.rel).join(''),t.rel||'_',t.pos||'_',t.sem||'_',t.lemma||'_'];while(a.length>3&&a[a.length-1]=='_')a.pop();return a.join(' ')}).join('\n');
+function syncT(){$('#src').value=TBL.map(serTable).filter(Boolean).join('\n\n');render()}
+function afld(id,v){
+ const T=TBL[ASEL.b],t=T&&T[ASEL.i];if(!t)return;v=v.replace(/[\s|]/g,'');
+ if(ASEL.k=='w'){if(id=='#pl')t.word=v;if(id=='#ps')t.sem=v;if(id=='#pp')t.pos=v;if(id=='#pm')t.lemma=v}
+ else if(id=='#pr'){v=v.replace(/:/g,'');if(ASEL.e<0)t.rel=v;else t.extra[ASEL.e].rel=v}
+ syncT();
+}
+function shiftH(T,at,d){T.forEach(t=>{if(t.head>at)t.head+=d;(t.extra||[]).forEach(e=>{if(e.h>at)e.h+=d})})}
+$('#pop').addEventListener('click',e=>{
+ if(!ASEL)return;
+ const a=e.target.dataset.a,T=TBL[ASEL.b],i=ASEL.i,t=T&&T[i];if(!t)return;
+ if(e.target.dataset.g&&ASEL.k=='w'){t.sem=(t.sem?t.sem+'.':'')+e.target.dataset.g;syncT();return}
+ if(!a)return;
+ if(a=='x'){ASEL=null;return showPop()}
+ if(a=='wadd'){shiftH(T,i+1,1);T.splice(i+1,0,{word:'word',head:0,rel:'',extra:[]})}
+ else if(a=='del'){
+  if(ASEL.k=='w'){T.forEach(x=>{if(x.head==i+1)x.head=0;x.extra=(x.extra||[]).filter(y=>y.h!=i+1)});shiftH(T,i+1,-1);T.splice(i,1);ASEL=null}
+  else if(ASEL.e<0){t.head=0;t.rel='';if(t.extra&&t.extra.length){const x=t.extra.shift();t.head=x.h;t.rel=x.rel}}
+  else t.extra.splice(ASEL.e,1);
+ }
+ syncT();
+});
+/* drag and drop */
+const dsrc=e=>e.target.closest&&e.target.closest('rect[data-p],rect[data-w]');
+$('#out').addEventListener('pointerdown',e=>{const t=dsrc(e);if(t&&!e.button)DR={t,x:e.clientX,y:e.clientY,m:false}});
+document.addEventListener('pointermove',e=>{
+ if(!DR)return;const g=DR.t.parentNode;
+ if(!DR.m){
+  if(Math.hypot(e.clientX-DR.x,e.clientY-DR.y)<6)return;DR.m=true;
+  BAND=document.createElementNS('http://www.w3.org/2000/svg','line');
+  [['stroke','#2f5fd0'],['stroke-width','2'],['stroke-dasharray','4 3'],['x1',+DR.t.getAttribute('x')+DR.t.getAttribute('width')/2],['y1',+DR.t.getAttribute('y')+DR.t.getAttribute('height')/2]].forEach(([k,v])=>BAND.setAttribute(k,v));
+  BAND.style.pointerEvents='none';g.appendChild(BAND);
+ }
+ const pt=g.ownerSVGElement.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;const p=pt.matrixTransform(g.getScreenCTM().inverse());
+ BAND.setAttribute('x2',p.x);BAND.setAttribute('y2',p.y);
+});
+document.addEventListener('pointerup',e=>{
+ if(!DR)return;const d=DR;DR=null;if(BAND){BAND.remove();BAND=null}
+ if(!d.m)return;DRAGGED=true;setTimeout(()=>DRAGGED=false,50);
+ const to=document.elementFromPoint(e.clientX,e.clientY),r=to&&to.closest('rect[data-p],rect[data-w]');
+ if(r&&r!==d.t)drop(d.t,r,e.shiftKey);
+});
+function drop(a,b,sh){
+ if(a.dataset.p&&b.dataset.p){
+  const pp=a.dataset.p,A=nodeAt(pp),B=nodeAt(b.dataset.p);
+  if((b.dataset.p+'.').startsWith(pp+'.'))return;
+  const par=pp.includes('.')?nodeAt(pp.replace(/\.\d+$/,'')):null,L=par?par.kids:TREES;
+  L.splice(L.indexOf(A),1);B.kids.push(A);SEL=null;sync();
+ }else if(a.dataset.w&&b.dataset.w){
+  const [b1,i]=a.dataset.w.split('.').map(Number),[b2,j]=b.dataset.w.split('.').map(Number);
+  if(b1!=b2||i==j)return;
+  const t=TBL[b1][j];
+  if(sh)(t.extra=t.extra||[]).push({h:i+1,rel:'dep'});else{t.head=i+1;if(!t.rel)t.rel='dep'}
+  ASEL=null;syncT();
+ }
+}
+/* errors */
+function check(src,m){
+ const bad=(a,b,msg)=>({a,b,msg});
+ if(m=='arcs'||(m=='dtree'&&src.trim()[0]!='[')){
+  const blk=[];let off=0,cu=[];
+  src.split('\n').forEach((l,i)=>{const t=l.trim();if(!t){if(cu.length)blk.push(cu);cu=[]}else if(t[0]!='#')cu.push({l,i,off});off+=l.length+1});
+  if(cu.length)blk.push(cu);
+  for(const B of blk)for(const r of B){
+   const c=r.l.trim().split(/\s+/),cl=c.length>=8&&/^\d+$/.test(c[0]),hs=((cl?c[6]:c[1])||'').split('|')[0],e=r.off+r.l.length,L='Line '+(r.i+1)+': ';
+   if(!cl&&c.length<2)return bad(r.off,e,L+'expected "word head relation"');
+   if(!/^\d+$/.test(hs))return bad(r.off,e,L+'head must be a number (0 = root)');
+   if(+hs>B.length)return bad(r.off,e,L+'head '+hs+' is beyond the last word ('+B.length+')');
+  }
+  return null;
+ }
+ const st=[];
+ for(let i=0;i<src.length;i++){const c=src[i];if(c==BS){i++;continue}if(c=='[')st.push(i);else if(c==']'){if(!st.length)return bad(i,i+1,'Unmatched "]" at position '+(i+1));st.pop()}}
+ if(st.length){const p=st[st.length-1];return bad(p,p+1,'Unclosed "[" at position '+(p+1)+' (closed automatically)')}
+ return null;
+}
+$('#err').addEventListener('click',e=>{if(e.target.id=='ej'&&ERR){e.preventDefault();const a=$('#src');a.focus();a.setSelectionRange(ERR.a,ERR.b)}});
+/* save / load */
+const SK='syntree:saves';
+const getS=()=>{try{return JSON.parse(localStorage.getItem(SK))||{}}catch(e){return{}}};
+const putS=o=>{try{localStorage.setItem(SK,JSON.stringify(o))}catch(e){flash('Storage unavailable')}};
+function fillS(sel){$('#sv').innerHTML='<option value="">Saved trees…</option>'+Object.keys(getS()).map(k=>'<option>'+esc(k)+'</option>').join('');if(sel)$('#sv').value=sel}
+function load(m,t){$('#mode').value=m;prev=m;$('#src').value=t;SEL=null;ASEL=null;render()}
+$('#ssave').onclick=()=>{const n=$('#sname').value.trim();if(!n)return;const o=getS();o[n]={m:$('#mode').value,t:$('#src').value};putS(o);fillS(n);flash('Saved')};
+$('#sload').onclick=()=>{const k=$('#sv').value,s=getS()[k];if(s){load(s.m,s.t);$('#sname').value=k}};
+$('#sdel').onclick=()=>{const k=$('#sv').value,o=getS();if(k){delete o[k];putS(o);fillS()}};
+fillS();
+/* import / export */
+function conv(t){
+ const s=t.trim();
+ if(s[0]=='(')return{m:'con',t:s.replace(/\(/g,'[').replace(/\)/g,']')};
+ if(/^\\Tree/.test(s))return{m:'con',t:s.replace(/\\Tree/g,'').replace(/\[\./g,'[').trim()};
+ if(/^\\begin\{forest\}/.test(s))return{m:'con',t:s.replace(/\\(begin|end)\{forest\}/g,'').trim()};
+ if(/^\d+\t/m.test(s))return{m:isDep()?'dtree':'arcs',t:s};
+ return null;
+}
+$('#src').addEventListener('paste',e=>{const c=conv((e.clipboardData||window.clipboardData).getData('text'));if(c){e.preventDefault();load(c.m,c.t);flash('Imported')}});
+$('#bimp').onclick=()=>$('#fimp').click();
+$('#fimp').onchange=async e=>{const f=e.target.files[0];if(!f)return;const t=await f.text(),c=conv(t);load(c?c.m:$('#mode').value,c?c.t:t);e.target.value=''};
+const tex=l=>segs(l).map(g=>g.k=='n'?g.t.replace(/[_&%#$^{}]/g,'\\$&'):'$'+(g.k=='sub'?'_':'^')+'{'+g.t+'}$').join('');
+const pen=n=>n.leaf&&!n.kids.length?n.label:'('+n.label+n.kids.map(k=>' '+pen(k)).join('')+')';
+const qt=n=>n.leaf&&!n.kids.length?tex(n.label):'[.'+tex(n.label)+n.kids.map(k=>' '+qt(k)).join('')+' ]';
+const fo=n=>'['+tex(n.label)+n.kids.map(k=>' '+fo(k)).join('')+']';
+function dot(){let c=0,s='digraph T {\n node [shape=plaintext];\n';TREES.forEach(r=>{(function f(n){const id='n'+c++;s+=' '+id+' [label="'+n.label.replace(/"/g,'')+'"];\n';n.kids.forEach(k=>{const kid=f(k);s+=' '+id+' -> '+kid+(k.rel?' [label="'+k.rel+'"]':'')+';\n'});return id})(r)});return s+'}'}
+$('#bex').onclick=()=>{
+ const f=$('#fmt').value;let o='';
+ if(f=='conllu'){if(!TBL.length)return flash('CoNLL-U needs arc mode');o=TBL.map(T=>T.map((t,i)=>[i+1,t.word,t.lemma||'_',t.pos||'_','_','_',t.head||0,t.rel||(t.head?'dep':'root'),[t.head+':'+(t.rel||'dep')].concat((t.extra||[]).map(e=>e.h+':'+e.rel)).join('|'),'_'].join('\t')).join('\n')).join('\n\n')}
+ else{if(!TREES.length)return flash('Needs a tree mode');o=f=='dot'?dot():TREES.map(t=>f=='pen'?pen(t):f=='qt'?'\\Tree '+qt(t):'\\begin{forest}\n'+fo(t)+'\n\\end{forest}').join('\n')}
+ const x=$('#xout');x.hidden=false;x.value=o;x.select();
+ if(navigator.clipboard)navigator.clipboard.writeText(o).catch(()=>{});
+ flash('Copied');
+};
+let DK=false;
+const DMAP={'#333':'#cfcfcf','#111':'#f0f0f0','#555':'#bbbbbb','#777':'#999999','#fff':'#1b1d21'};
+function setTheme(d){
+ DK=d;
+ const def={l:{tc:'#2a7a2a',nc:'#2f4fd0'},d:{tc:'#7ddc7d',nc:'#8fb0ff'}};
+ const from=def[d?'l':'d'],to=def[d?'d':'l'];
+ ['tc','nc'].forEach(k=>{if($('#'+k).value.toLowerCase()==from[k])$('#'+k).value=to[k]});
+ $('#tl').classList.toggle('on',!d);$('#td').classList.toggle('on',d);
+ render();
+}
+$('#tl').onclick=()=>setTheme(false);
+$('#td').onclick=()=>setTheme(true);
+let Z=1;
+function applyZoom(){
+ const s=$('#out svg');$('#zl').textContent=Math.round(Z*100)+'%';
+ if(!s)return;
+ s.setAttribute('width',Math.ceil(s.viewBox.baseVal.width*Z));
+ s.setAttribute('height',Math.ceil(s.viewBox.baseVal.height*Z));showPop();
+}
+function setZoom(z){Z=Math.min(8,Math.max(.1,z));applyZoom()}
+$('#zi').onclick=()=>setZoom(Z*1.2);
+$('#zo').onclick=()=>setZoom(Z/1.2);
+$('#z1').onclick=()=>setZoom(1);
+$('#zf').onclick=()=>{const s=$('#out svg');if(s)setZoom(($('#out').clientWidth-16)/s.viewBox.baseVal.width)};
+$('#out').addEventListener('wheel',e=>{if(e.ctrlKey||e.metaKey){e.preventDefault();setZoom(Z*(e.deltaY<0?1.1:1/1.1))}},{passive:false});
+let prev='con';
+$('#mode').onchange=()=>{SEL=null;ASEL=null;
+ const v=$('#src').value.trim();
+ if(!v||v==EX[prev])$('#src').value=EX[$('#mode').value];
+ prev=$('#mode').value;render();
+};
+document.querySelectorAll('input,textarea,select').forEach(e=>e.addEventListener('input',render));
+(function init(){
+ const q=new URLSearchParams(location.search);
+ if(['con','dtree','arcs'].includes(q.get('m')))$('#mode').value=q.get('m');
+ if(q.get('fs'))$('#fs').value=q.get('fs');
+ prev=$('#mode').value;
+ $('#src').value=q.get('t')||EX[prev];
+ setTheme(q.get('th')=='d');
+ render();
+})();
+
+/* ---------- tutorial ---------- */
+const TUT=[
+{id:'start',t:'1. Getting started',h:String.raw`
+<p>Type in the text box and the drawing updates as you type. Choose the kind of diagram with the <b>Mode</b> menu: <b>Constituency tree</b>, <b>Dependency tree</b> or <b>Dependency model (arcs)</b>. Every example below has an <b>Open in editor</b> button that loads it so you can experiment.</p>
+<div class="ex"><pre class="src" data-m="con">[S [NP This] [VP [V is] [NP [Det a] [N wug]]]]</pre></div>
+<p>The text is square brackets: each <code>[</code> opens a node, the first word is its label, and what follows are its children. Words that are not in brackets are the leaves (terminals). Terminals and non-terminals are coloured differently (turn this off with the Colour box).</p>`},
+{id:'con',t:'2. Constituency trees',h:String.raw`
+<h3>Triangles</h3>
+<p>Put <code>/\</code> directly after a label to draw a triangle over the text below it.</p>
+<div class="ex"><pre class="src" data-m="con">[S [NP This] [VP [V is] [NP/\ a wug]]]</pre></div>
+<h3>Several clauses</h3>
+<p>Write more than one bracketed clause and they are all drawn. Use the <b>Clauses</b> menu to stack them or put them side by side.</p>
+<div class="ex"><pre class="src" data-m="con">[S [NP I] [VP left]] [S [NP she] [VP stayed]]</pre></div>
+<h3>Subscripts, superscripts and literal symbols</h3>
+<p><code>_</code> and <code>^</code> are printed as normal characters. For a real subscript type <code>_\</code> before the text, for a superscript type <code>^\</code>. The script lasts until the next space or bracket. Use <code>\[</code> and <code>\]</code> for literal brackets.</p>
+<div class="ex"><pre class="src" data-m="con">[NP [N x_\1] [N x^\2] [N snake_case]]</pre></div>
+<h3>Movement arrows</h3>
+<p>Give exactly two nodes the same subscript and an arrow is drawn from the later one to the earlier one. Switch arrows off with the Movement arrows box.</p>
+<div class="ex"><pre class="src" data-m="con">[CP [DP_\1 What] [C' [C° did] [IP [DP you] [VP [V° buy] [DP t_\1]]]]]</pre></div>
+<h3>Semantic labels</h3>
+<p>Put a semantic label in curly brackets after a label. It is shown beside the node in orange.</p>
+<div class="ex"><pre class="src" data-m="con">[S [NP{agent} Mary] [VP [V{event} saw] [NP{theme} John]]]</pre></div>
+<h3>Leipzig glossing</h3>
+<p>Put a gloss in angle brackets after a word, with no spaces. Terminals show it underneath, other nodes beside them. Grammatical abbreviations in capitals are shown in small caps. Join meanings with <code>.</code>, and use <code>-</code> or <code>=</code> for morpheme boundaries.</p>
+<div class="ex"><pre class="src" data-m="con">[S [NP [N° she&lt;3SG.F.NOM&gt;]] [VP [V° sees&lt;see.3SG.PRS&gt;] [NP [N° her&lt;3SG.F.ACC&gt;]]]]</pre></div>`},
+{id:'dtree',t:'3. Dependency trees',h:String.raw`
+<p>Switch Mode to <b>Dependency tree</b>. Each node is a word and the head comes first. Write the relation before the word with a colon: <code>relation:word</code>. Relations are drawn on the edges.</p>
+<div class="ex"><pre class="src" data-m="dtree">[ate [nsubj:John] [dobj:apple [det:an]] [advmod:quickly]]</pre></div>
+<h3>POS and lemma</h3>
+<p>Add them after the word with slashes: <code>relation:word/POS/lemma</code>. They appear above the word. The <b>POS / lemma</b> box shows or hides them.</p>
+<div class="ex"><pre class="src" data-m="dtree">[ate/VBD/eat [nsubj:John/NNP/john] [dobj:apple/NN/apple [det:an/DT/a]]]</pre></div>
+<h3>From a table</h3>
+<p>A dependency tree can also be typed as a table (see the next section). It is converted into a tree.</p>
+<div class="ex"><pre class="src" data-m="dtree">John 2 nsubj
+ate 0 root
+apple 2 dobj</pre></div>`},
+{id:'arcs',t:'4. Dependency model (arcs)',h:String.raw`
+<p>Switch Mode to <b>Dependency model (arcs)</b>. Type one word per line as <code>word head relation POS</code>. The head is the number of the head word (1 is the first word) and <code>0</code> means the root. The arrow points at the dependent.</p>
+<div class="ex"><pre class="src" data-m="arcs">John 2 nsubj NNP
+ate 0 root VBD
+an 4 det DT
+apple 2 dobj NN
+quickly 2 advmod RB</pre></div>
+<table><tr><th>Column</th><th>Meaning</th></tr><tr><td>1 word</td><td>the word</td></tr><tr><td>2 head</td><td>head number, 0 = root; extra heads with <code>|</code></td></tr><tr><td>3 relation</td><td>dependency relation</td></tr><tr><td>4 POS</td><td>part of speech (optional)</td></tr><tr><td>5 gloss</td><td>semantic label or gloss (optional)</td></tr><tr><td>6 lemma</td><td>lemma (optional)</td></tr></table>
+<p>Use <code>_</code> to skip a column. POS and lemma appear under each word.</p>
+<div class="ex"><pre class="src" data-m="arcs">John 2 nsubj NNP _ john
+ate 0 root VBD _ eat
+apples 2 obj NNS _ apple</pre></div>
+<h3>Enhanced dependencies (extra heads)</h3>
+<p>A word can have more than one head. Write the primary head, then extra heads after <code>|</code> as <code>head:relation</code>. Extra arcs are dashed. Here <i>John</i> is also the subject of <i>sleep</i>.</p>
+<div class="ex"><pre class="src" data-m="arcs">John 2 nsubj
+wants 0 root
+to 4 mark
+sleep 2|1:nsubj xcomp</pre></div>
+<h3>Crossing (non-projective) arcs</h3>
+<p>Arcs may cross. Each gets its own height so they stay readable.</p>
+<div class="ex"><pre class="src" data-m="arcs">She 2 nsubj
+saw 0 root
+a 4 det
+man 2 obj
+yesterday 2 advmod
+who 7 nsubj
+left 4 acl</pre></div>
+<h3>Several sentences and CoNLL-U</h3>
+<p>Separate sentences with a blank line. You can also paste CoNLL-U (tab separated, ten columns); it is read automatically, including its enhanced-dependency column.</p>
+<div class="ex"><pre class="src" data-m="arcs">Birds 2 nsubj
+sing 0 root
+
+Dogs 2 nsubj
+bark 0 root</pre></div>`},
+{id:'edit',t:'5. Editing in the drawing',h:String.raw`
+<h3>Trees</h3>
+<p>Click any node (or a dependency relation on an edge) and a small editor opens next to it.</p>
+<div class="mock"><div>Label <span class="in">VP</span></div><div>Semantic <span class="in">event</span></div><div>Gloss <span class="in"></span></div><div>Relation <span class="in">dobj</span></div><div>POS <span class="in">VB</span></div><div>Lemma <span class="in">eat</span></div><div class="bt"><span>+ Child &darr;</span><span>+ Sibling &rarr;</span><span>+ Parent &uarr;</span><span>&larr;</span><span>&rarr;</span><span>&#9651;</span><span>Delete</span><span>Close</span></div></div>
+<ul>
+<li><b>Label, Semantic, Gloss</b>: edit the node text, the <code>{...}</code> label and the gloss as you type. Gloss abbreviation buttons add common Leipzig terms.</li>
+<li><b>Relation, POS, Lemma</b>: for dependency trees.</li>
+<li><b>+ Child</b> adds a branch below, <b>+ Sibling</b> beside it (on a top-level node this adds a new clause), <b>+ Parent</b> inserts a node above it.</li>
+<li><b>&larr; / &rarr;</b> move the node among its siblings. <b>&#9651;</b> toggles a triangle (constituency). <b>Delete</b> removes the node and everything below it.</li>
+</ul>
+<div class="pair">
+<div><p class="cap">Before</p><div class="ex"><pre class="src" data-m="con">[S [NP She] [VP ran]]</pre></div></div>
+<div><p class="cap">After + Parent on VP</p><div class="ex"><pre class="src" data-m="con">[S [NP She] [X [VP ran]]]</pre></div></div>
+</div>
+<h3>Drag and drop</h3>
+<p>Drag a node onto another node to move it there as a child.</p>
+<div class="pair">
+<div><p class="cap">Before: drag <i>Adv</i> onto <i>VP</i></p><div class="ex"><pre class="src" data-m="con">[S [NP She] [VP [V ran]] [Adv fast]]</pre></div></div>
+<div><p class="cap">After</p><div class="ex"><pre class="src" data-m="con">[S [NP She] [VP [V ran] [Adv fast]]]</pre></div></div>
+</div>
+<h3>Arc diagrams</h3>
+<ul>
+<li>Click a <b>word</b> to edit its text, POS, lemma and gloss, or to add a word after it or delete it. Head numbers update for you.</li>
+<li>Click a <b>relation label</b> to rename that arc or delete it.</li>
+<li><b>Drag from a head word to its dependent</b> to set the head. Hold <b>Shift</b> while dropping to add an extra (dashed) head instead.</li>
+</ul>
+<div class="pair">
+<div><p class="cap">Before: drag from <i>sleeps</i> (the head) to <i>John</i></p><div class="ex"><pre class="src" data-m="arcs">John 0 root
+sleeps 0 root</pre></div></div>
+<div><p class="cap">After</p><div class="ex"><pre class="src" data-m="arcs">John 2 nsubj
+sleeps 0 root</pre></div></div>
+</div>
+<p>Press <b>Esc</b> or <b>Close</b> to dismiss the editor. All changes are written back into the text box, so you can keep typing as well.</p>`},
+{id:'view',t:'6. Display controls',h:String.raw`
+<ul>
+<li><b>Font, Size, Height, Spacing</b>: text face and size, vertical distance between tree levels, and horizontal gaps (also the gap between words in arc diagrams).</li>
+<li><b>Colour</b> with two pickers for terminals and non-terminals (also used for relations in arcs). <b>Movement arrows</b> and <b>POS / lemma</b> switch those parts on or off.</li>
+<li><b>Clauses</b>: stack several clauses or place them side by side.</li>
+<li><b>Light / Dark</b> above the drawing changes the drawing itself, and exports follow it.</li>
+<li><b>Zoom</b>: the &minus; and + buttons, 100%, <b>Fit width</b>, or Ctrl/Cmd + scroll over the drawing.</li>
+</ul>`},
+{id:'files',t:'7. Undo, saving, sharing and import / export',h:String.raw`
+<ul>
+<li><b>Undo / Redo</b> buttons, or Ctrl/Cmd+Z and Ctrl/Cmd+Y. They cover typing and every change made in the drawing.</li>
+<li><b>Save / Load</b>: type a name, press Save, then pick it from the list later and press Load. Saved trees live in your browser. Delete removes the selected one.</li>
+<li><b>Download SVG / PNG</b> save the drawing as it looks, and <b>Copy link</b> copies an address that reopens the same text and mode.</li>
+<li><b>Import / export</b> (the card under the drawing): <b>Export text</b> writes Penn Treebank, LaTeX qtree, LaTeX forest, Graphviz DOT or CoNLL-U (arc mode) into the box and copies it. <b>Import file</b>, or just pasting into the text box, converts Penn Treebank, qtree, forest and CoNLL-U automatically.</li>
+<li><b>Error messages</b>: a red line under the text box names the problem, such as an unmatched bracket or a head number that does not exist. Press <b>Show</b> to select the spot.</li>
+</ul>`},
+{id:'cheat',t:'8. Cheat sheet',h:String.raw`
+<table>
+<tr><th>You want</th><th>Type</th></tr>
+<tr><td>Node with children</td><td><code>[NP [Det the] [N dog]]</code></td></tr>
+<tr><td>Triangle</td><td><code>[NP/\ the old dog]</code></td></tr>
+<tr><td>Subscript / superscript</td><td><code>X_\1</code> / <code>X^\2</code></td></tr>
+<tr><td>Literal _ ^ [ ]</td><td><code>_</code> <code>^</code> <code>\[</code> <code>\]</code></td></tr>
+<tr><td>Movement arrow</td><td>same subscript on two nodes: <code>DP_\1 ... t_\1</code></td></tr>
+<tr><td>Semantic label</td><td><code>NP{agent}</code></td></tr>
+<tr><td>Gloss</td><td><code>sees&lt;see.3SG.PRS&gt;</code></td></tr>
+<tr><td>Dependency tree node</td><td><code>[rel:word/POS/lemma ...children]</code></td></tr>
+<tr><td>Arc table row</td><td><code>word head rel POS gloss lemma</code></td></tr>
+<tr><td>Extra head</td><td><code>2|4:xsubj</code> in the head column</td></tr>
+<tr><td>New sentence (arcs)</td><td>blank line</td></tr>
+</table>`}
+];
+function exSvg(m,t){
+ const sv=[TI,TREES,TBL];TI=0;TREES=[];TBL=[];
+ const o={fs:17,lh:50,gap:16,col:true,tc:'#2a7a2a',nc:'#2f4fd0',ar:true,sp:true};
+ let items=[];
+ try{
+  if(m=='arcs')items=blocks(t).map((T,b)=>drawArcs(T,o,b));
+  else if(m=='dtree'&&t.trim()[0]!='[')items=blocks(t).map(T=>tableToTree(T)).filter(Boolean).map(x=>drawTree(x,o,true));
+  else items=parse(t).map(x=>{if(m=='dtree')splitRel(x);return drawTree(x,o,m=='dtree')});
+ }catch(e){}
+ [TI,TREES,TBL]=sv;
+ return items.length?compose(items,false):'';
+}
+
+const PAGES={
+con:{t:'Constituency trees',h:String.raw`
+<p class="lead">A constituency tree (also called a phrase-structure tree or parse tree) shows how the words of a sentence group into nested units called <b>constituents</b>.</p>
+<div class="ex"><pre class="src" data-m="con">[S [NP [Det The] [N cat]] [VP [V sat] [PP [P on] [NP [Det the] [N mat]]]]]</pre></div>
+<h3>What it shows</h3>
+<p>The words sit at the bottom of the tree. Each word has a category (Det, N, V, P). Words combine into phrases (NP, VP, PP), and phrases combine into larger phrases until a single top node, usually S, covers the whole sentence. Reading upward means "is part of": <i>on the mat</i> is a PP, and that PP is part of the VP.</p>
+<h3>How it is made</h3>
+<ol>
+<li><b>Label every word</b> with its category (noun, verb, determiner, preposition...).</li>
+<li><b>Build phrases from the bottom up.</b> Each phrase has a <i>head</i>, the word that decides what kind of phrase it is. A noun heads an NP, a verb heads a VP. Attach the head's complements and modifiers to it.</li>
+<li><b>Combine phrases</b> into a clause: the subject NP plus the VP make an S (or TP/CP in generative work).</li>
+<li><b>Check the groupings with constituency tests.</b> A string is a constituent if you can replace it with a pronoun (<i>the cat</i> &rarr; <i>it</i>), move it as a block (<i>On the mat, the cat sat</i>), coordinate it with a similar phrase, or use it alone as an answer (<i>Where? On the mat</i>).</li>
+</ol>
+<p>Grammars state this as <b>phrase-structure rules</b>: <code>S &rarr; NP VP</code>, <code>NP &rarr; Det N</code>, <code>VP &rarr; V PP</code>, <code>PP &rarr; P NP</code>. In <b>X-bar theory</b> every phrase has the same shape: a head X, a middle level X&prime; that holds the head and its complement, and the full phrase XP that adds a specifier.</p>
+<div class="ex"><pre class="src" data-m="con">[TP [DP/\ the cat] [T' [T will] [VP [V' [V sleep]]]]]</pre></div>
+<h3>What it is used for</h3>
+<ul>
+<li>Teaching and analysing syntax, and testing theories about movement, binding and agreement.</li>
+<li><b>Showing structural ambiguity.</b> One string, two trees: who has the telescope?</li>
+<li>Treebanks such as the Penn Treebank, which are used to train and test constituency parsers.</li>
+<li>Applications that need phrases, such as syntax-based machine translation, grammar checking and phrasing in speech synthesis.</li>
+</ul>
+<div class="pair">
+<div><p class="cap">I saw [the man] [with the telescope]: I used the telescope</p><div class="ex"><pre class="src" data-m="con">[S [NP I] [VP [V saw] [NP [Det the] [N man]] [PP [P with] [NP [Det the] [N telescope]]]]]</pre></div></div>
+<div><p class="cap">I saw [the man with the telescope]: the man has it</p><div class="ex"><pre class="src" data-m="con">[S [NP I] [VP [V saw] [NP [NP [Det the] [N man]] [PP [P with] [NP [Det the] [N telescope]]]]]]</pre></div></div>
+</div>
+<h3>Key terms</h3>
+<table>
+<tr><th>Term</th><th>Meaning</th></tr>
+<tr><td>Node</td><td>Any point in the tree: a label or a word.</td></tr>
+<tr><td>Root</td><td>The top node (S, TP or CP).</td></tr>
+<tr><td>Terminal / leaf</td><td>A word at the bottom. It has no daughters.</td></tr>
+<tr><td>Non-terminal</td><td>A category label such as NP or VP that has daughters.</td></tr>
+<tr><td>Mother, daughter, sister</td><td>Family terms for connected nodes: a node is the mother of the nodes directly below it, and those are sisters to each other.</td></tr>
+<tr><td>Dominance</td><td>A node dominates everything below it.</td></tr>
+<tr><td>Constituent</td><td>A group of words that the tree treats as one unit (everything under one node).</td></tr>
+<tr><td>Head</td><td>The word that determines the category of its phrase.</td></tr>
+<tr><td>Phrase (XP)</td><td>A head with everything attached to it: NP, VP, PP, AP, DP...</td></tr>
+<tr><td>Complement</td><td>A phrase the head needs, such as the object of a verb.</td></tr>
+<tr><td>Adjunct / modifier</td><td>An optional addition, such as a PP or adverb.</td></tr>
+<tr><td>Specifier</td><td>The phrase in the top position of an XP, often the subject or a determiner.</td></tr>
+<tr><td>Bar level</td><td>X (word), X&prime; (intermediate), XP (full phrase) in X-bar theory.</td></tr>
+<tr><td>Category labels</td><td>S sentence, NP noun phrase, VP verb phrase, PP prepositional phrase, AP adjective phrase, DP determiner phrase, TP/IP tense or inflection phrase, CP complementiser phrase; Det, N, V, P, Adj, Adv for words.</td></tr>
+<tr><td>Movement, trace, index</td><td>A phrase that moves leaves a trace <i>t</i>. A shared subscript links the moved phrase to its trace. In this editor that is drawn as an arrow.</td></tr>
+<tr><td>Triangle</td><td>Shorthand when the inner structure of a phrase is not shown.</td></tr>
+<tr><td>C-command</td><td>A node c-commands its sister and everything its sister dominates. It is central to binding and many other rules.</td></tr>
+</table>
+<p>How to type these in the editor is covered in the <a href="#" class="hl" data-back="1" data-s="t-con">Constituency trees</a> section of the tutorial. For the same sentence seen through heads and dependents, see <a href="#" class="hl" data-pg="dtree">Dependency trees</a>.</p>`},
+dtree:{t:'Dependency trees',h:String.raw`
+<p class="lead">A dependency tree describes a sentence as a set of links between words. Each link joins a <b>head</b> to one of its <b>dependents</b>, and is labelled with the grammatical relation between them. There are no phrase nodes: every node is a word.</p>
+<div class="ex"><pre class="src" data-m="dtree">[ate [nsubj:cat [det:The]] [obj:fish [det:the]]]</pre></div>
+<h3>What it shows</h3>
+<p>The main verb is the <b>root</b>. Its dependents (subject, object, adverbials) hang below it, and their own dependents hang below them. Every word except the root has exactly one head. The idea goes back to Lucien Tesni&egrave;re and is the basis of dependency grammar.</p>
+<h3>How it is made</h3>
+<ol>
+<li><b>Choose the root</b>, normally the main (finite) verb.</li>
+<li><b>Attach its direct dependents</b>: the words that depend on it for their grammatical role, such as the subject, object and adverbs. Give each link a relation label (<i>nsubj</i>, <i>obj</i>, <i>advmod</i>...).</li>
+<li><b>Repeat for every dependent</b>: the noun <i>cat</i> takes the determiner <i>The</i> as its own dependent.</li>
+<li><b>Decide hard cases with head tests.</b> The head is the word that mainly determines how the pair behaves: what other words can appear with it, what agreement it triggers, and whether it can stand alone. Annotation schemes such as Universal Dependencies make fixed choices, for example making the content word the head of a function word.</li>
+</ol>
+<div class="pair">
+<div><p class="cap">The same sentence as a constituency tree</p><div class="ex"><pre class="src" data-m="con">[S [NP [Det The] [N cat]] [VP [V ate] [NP [Det the] [N fish]]]]</pre></div></div>
+<div><p class="cap">As a dependency tree: fewer nodes, no phrase labels</p><div class="ex"><pre class="src" data-m="dtree">[ate [nsubj:cat [det:The]] [obj:fish [det:the]]]</pre></div></div>
+</div>
+<h3>What it is used for</h3>
+<ul>
+<li><b>Natural language processing.</b> Parsers such as spaCy and Stanza output dependencies, and they are used for information and relation extraction, question answering and translation.</li>
+<li><b>Treebanks and cross-language comparison.</b> Universal Dependencies annotates over a hundred languages with one label set.</li>
+<li>Languages with freer word order (Czech, Latin, Turkish, Russian and others), where a link between words is easier to state than a fixed phrase position.</li>
+<li>Describing <b>valency</b>: which dependents a verb requires, and teaching grammar relations directly.</li>
+</ul>
+<p>Ambiguity appears here too: the attachment of <i>with the telescope</i> changes which word is its head.</p>
+<div class="pair">
+<div><p class="cap">Attached to the verb: I used the telescope</p><div class="ex"><pre class="src" data-m="dtree">[saw [nsubj:I] [obj:man [det:the]] [obl:telescope [case:with] [det:the]]]</pre></div></div>
+<div><p class="cap">Attached to the noun: the man has it</p><div class="ex"><pre class="src" data-m="dtree">[saw [nsubj:I] [obj:man [det:the] [nmod:telescope [case:with] [det:the]]]]</pre></div></div>
+</div>
+<h3>Key terms</h3>
+<table>
+<tr><th>Term</th><th>Meaning</th></tr>
+<tr><td>Head (governor)</td><td>The word a link starts from. It controls the other word.</td></tr>
+<tr><td>Dependent (modifier)</td><td>The word a link points to.</td></tr>
+<tr><td>Root</td><td>The one word with no head, usually the main verb.</td></tr>
+<tr><td>Dependency relation</td><td>The label on a link, naming the grammatical function.</td></tr>
+<tr><td>Argument / adjunct</td><td>An argument is required by its head (subject, object). An adjunct is optional.</td></tr>
+<tr><td>Valency</td><td>How many and what kind of arguments a word takes.</td></tr>
+<tr><td>Subtree</td><td>A word together with everything that depends on it, directly or not.</td></tr>
+<tr><td>Projectivity</td><td>A tree is projective when no links cross if the words are put in order. See <a href="#" class="hl" data-pg="arcs">Dependency model (arcs)</a>.</td></tr>
+<tr><td>UD (Universal Dependencies)</td><td>A shared annotation scheme and set of relations used across languages.</td></tr>
+</table>
+<h3>Common Universal Dependencies relations</h3>
+<table>
+<tr><th>Label</th><th>Meaning</th><th>Label</th><th>Meaning</th></tr>
+<tr><td>nsubj</td><td>nominal subject</td><td>det</td><td>determiner</td></tr>
+<tr><td>obj (dobj in older schemes)</td><td>direct object</td><td>amod</td><td>adjective modifier</td></tr>
+<tr><td>iobj</td><td>indirect object</td><td>advmod</td><td>adverb modifier</td></tr>
+<tr><td>obl</td><td>oblique nominal</td><td>nmod</td><td>nominal modifier</td></tr>
+<tr><td>aux</td><td>auxiliary verb</td><td>case</td><td>preposition or case marker</td></tr>
+<tr><td>cop</td><td>copula</td><td>mark</td><td>subordinating marker</td></tr>
+<tr><td>xcomp</td><td>open clausal complement</td><td>ccomp</td><td>clausal complement</td></tr>
+<tr><td>conj</td><td>conjunct</td><td>cc</td><td>coordinating conjunction</td></tr>
+<tr><td>acl</td><td>clause modifying a noun</td><td>punct</td><td>punctuation</td></tr>
+</table>
+<p>To type them, see the <a href="#" class="hl" data-back="1" data-s="t-dtree">Dependency trees</a> section of the tutorial.</p>`},
+arcs:{t:'Dependency model (arcs)',h:String.raw`
+<p class="lead">A dependency model drawn as arcs (an arc diagram) shows the same head&ndash;dependent links as a dependency tree, but keeps the words in their real left-to-right order on one line. Each link is an arc above the words, running from the head to the dependent.</p>
+<div class="ex"><pre class="src" data-m="arcs">The 2 det
+cat 3 nsubj
+ate 0 root
+the 5 det
+fish 3 obj</pre></div>
+<h3>What it shows</h3>
+<p>Because word order is kept, you can see at a glance how far apart a head and its dependent are, which direction the dependency runs (left or right), and whether arcs <b>cross</b>. The root has an arrow of its own coming from above. A longer arc spans more words and so sits higher.</p>
+<h3>How it is made</h3>
+<ol>
+<li><b>Split the sentence into tokens</b> and number them from 1.</li>
+<li><b>Give each token a head</b>: the number of the word it depends on, or 0 if it is the root.</li>
+<li><b>Give each link a relation label</b> (nsubj, obj, det...).</li>
+<li><b>Check it</b>: exactly one root, every head number exists, and no word depends on itself or loops back through its own dependents.</li>
+<li><b>Draw</b> one arc per row, from the head to the dependent. Rows are what the table you type is made of: <code>word head relation</code>.</li>
+</ol>
+<h3>Crossing arcs: non-projective structures</h3>
+<p>If no arcs cross, the structure is <b>projective</b>. English mostly is, but some constructions are not. Here the relative clause <i>who left</i> belongs to <i>man</i>, yet it comes after <i>yesterday</i>, so two arcs cross.</p>
+<div class="ex"><pre class="src" data-m="arcs">She 2 nsubj
+saw 0 root
+a 4 det
+man 2 obj
+yesterday 2 advmod
+who 7 nsubj
+left 4 acl</pre></div>
+<h3>Enhanced dependencies: more than one head</h3>
+<p>A strict tree gives each word one head. <b>Enhanced dependencies</b> turn the structure into a graph, so a word may have more than one. This shows shared arguments, for example that <i>John</i> is also the subject of <i>sleep</i>. The extra arc is dashed.</p>
+<div class="ex"><pre class="src" data-m="arcs">John 2 nsubj
+wants 0 root
+to 4 mark
+sleep 2|1:nsubj xcomp</pre></div>
+<h3>What it is used for</h3>
+<ul>
+<li><b>Treebank annotation.</b> The CoNLL-U format behind Universal Dependencies is one row per word with head and relation columns.</li>
+<li><b>Evaluating parsers.</b> Two scores are standard: UAS (unlabelled attachment score, the share of words with the right head) and LAS (labelled, the head and the relation both right).</li>
+<li><b>Visualising long-distance and crossing dependencies</b> that are hard to read in a tree.</li>
+<li>Teaching, because word order and grammatical links can be read together.</li>
+</ul>
+<h3>Key terms</h3>
+<table>
+<tr><th>Term</th><th>Meaning</th></tr>
+<tr><td>Arc</td><td>A link drawn from a head to its dependent, with the relation as its label.</td></tr>
+<tr><td>Head / dependent</td><td>The word the arc starts from / the word the arrow points at.</td></tr>
+<tr><td>Root</td><td>The word with no head. Its head number is 0.</td></tr>
+<tr><td>Arc length (span)</td><td>The number of words between a head and its dependent.</td></tr>
+<tr><td>Left arc / right arc</td><td>The dependent comes before / after its head.</td></tr>
+<tr><td>Projective / non-projective</td><td>No crossing arcs / at least one crossing.</td></tr>
+<tr><td>Enhanced dependencies</td><td>An extra layer in which a word can have several heads.</td></tr>
+<tr><td>UAS / LAS</td><td>Attachment scores: head only / head and relation.</td></tr>
+<tr><td>Token</td><td>A word or punctuation mark, the unit that gets a number.</td></tr>
+</table>
+<h3>The CoNLL-U columns</h3>
+<table>
+<tr><th>#</th><th>Field</th><th>Content</th></tr>
+<tr><td>1</td><td>ID</td><td>word number</td></tr>
+<tr><td>2</td><td>FORM</td><td>the word as written</td></tr>
+<tr><td>3</td><td>LEMMA</td><td>dictionary form</td></tr>
+<tr><td>4</td><td>UPOS</td><td>universal part of speech</td></tr>
+<tr><td>5</td><td>XPOS</td><td>language-specific tag</td></tr>
+<tr><td>6</td><td>FEATS</td><td>morphological features</td></tr>
+<tr><td>7</td><td>HEAD</td><td>head word number, 0 for the root</td></tr>
+<tr><td>8</td><td>DEPREL</td><td>relation to the head</td></tr>
+<tr><td>9</td><td>DEPS</td><td>enhanced dependencies (head:relation pairs separated by |)</td></tr>
+<tr><td>10</td><td>MISC</td><td>anything else</td></tr>
+</table>
+<p>You can paste CoNLL-U straight into the editor. To type the simpler table, see the <a href="#" class="hl" data-back="1" data-s="t-arcs">Dependency model (arcs)</a> section of the tutorial, and for the tree view of the same ideas see <a href="#" class="hl" data-pg="dtree">Dependency trees</a>.</p>`}
+};
+function fillEx(root){
+ root.querySelectorAll('pre.src').forEach(pre=>{
+  if(pre.nextElementSibling&&pre.nextElementSibling.classList.contains('fig'))return;
+  const t=pre.textContent.replace(/^\n+|\s+$/g,'');
+  pre.insertAdjacentHTML('afterend','<div class="fig">'+exSvg(pre.dataset.m,t)+'</div><button class="try">Open in editor</button>');
+ });
+}
+let TSCROLL=0;
+function showPage(id){
+ const P=PAGES[id];TSCROLL=$('#tmain').hidden?TSCROLL:$('#tut').scrollTop;
+ $('#tmain').hidden=true;$('#tpage').hidden=false;
+ const back='<p><a href="#" class="hl" data-back="1">&larr; Back to tutorial</a></p>';
+ $('#tpage').innerHTML=back+'<h1>'+P.t+'</h1>'+P.h+back;
+ fillEx($('#tpage'));$('#tut').scrollTop=0;
+}
+function backTut(sec){
+ $('#tpage').hidden=true;$('#tmain').hidden=false;
+ const t=sec&&document.getElementById(sec);
+ if(t)t.scrollIntoView({block:'start'});else $('#tut').scrollTop=TSCROLL;
+}
+function buildTut(){
+ $('#tbody').innerHTML=TUT.map(x=>'<section id="t-'+x.id+'"><h2>'+(PAGES[x.id]?'<a href="#" class="hl" data-pg="'+x.id+'">'+x.t+'</a><small>what is it? &rsaquo;</small>':x.t)+'</h2>'+x.h+'</section>').join('');
+ $('#tnav').innerHTML=TUT.map(x=>'<a href="#" data-s="t-'+x.id+'">'+x.t.replace(/^\d+\.\s*/,'')+'</a>').join(' &middot; ');
+ fillEx($('#tbody'));
+}
+let TBUILT=false;
+function openTut(){if(!TBUILT){buildTut();TBUILT=true}$('#tut').hidden=false;$('#tut').scrollTop=0;document.body.style.overflow='hidden'}
+function closeTut(){$('#tut').hidden=true;$('#tpage').hidden=true;$('#tmain').hidden=false;document.body.style.overflow=''}
+$('#btut').onclick=openTut;$('#tclose').onclick=closeTut;
+document.addEventListener('keydown',e=>{if(e.key=='Escape'&&!$('#tut').hidden)closeTut()});
+$('#tut').addEventListener('click',e=>{
+ const pg=e.target.closest('[data-pg]');
+ if(pg){e.preventDefault();showPage(pg.dataset.pg);return}
+ const bk=e.target.closest('[data-back]');
+ if(bk){e.preventDefault();backTut(bk.dataset.s);return}
+ const a=e.target.closest('[data-s]');
+ if(a){e.preventDefault();const t=document.getElementById(a.dataset.s);if(t)t.scrollIntoView({behavior:'smooth',block:'start'});return}
+ if(e.target.classList.contains('try')){const pre=e.target.previousElementSibling.previousElementSibling;load(pre.dataset.m,pre.textContent.replace(/^\n+|\s+$/g,''));closeTut();window.scrollTo(0,0)}
+});
+</script></body></html>
